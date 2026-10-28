@@ -358,7 +358,7 @@ export function mountPage(): void {
     if (!refOpen && !(feature instanceof HTMLElement)) return;
     // One layer at a time, so the diagram dialog stays up for the next press.
     if (refOpen) hideRef();
-    else feature.hidePopover();
+    else if (feature instanceof HTMLElement) feature.hidePopover();
     e.preventDefault();
   });
   fileDialog.addEventListener("click", (e) => {

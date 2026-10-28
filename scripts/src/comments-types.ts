@@ -25,6 +25,11 @@ export interface CommentStrings {
   locDiagram: string;
   locPopover: string;
   locFile: string;
+  answers: string;
+  decision: string;
+  verdictApprove: string;
+  verdictChanges: string;
+  decisionNote: string;
 }
 
 export const DEFAULT_STRINGS: CommentStrings = {
@@ -52,6 +57,11 @@ export const DEFAULT_STRINGS: CommentStrings = {
   locDiagram: "Diagram",
   locPopover: "Detail popover",
   locFile: "File view",
+  answers: "Answers",
+  decision: "Decision",
+  verdictApprove: "Approve",
+  verdictChanges: "Request changes",
+  decisionNote: "Note",
 };
 
 /** Live elements that show a comment exists: a bar on the block, a dot on the thing that opens it. */
@@ -68,6 +78,8 @@ export interface Marks {
 export interface Anchor {
   key: string;
   section: string;
+  /** Manifest path from the nearest `data-nsx-field` (innermost wins); empty when none. */
+  field: string;
   where: string;
   excerpt: string;
   files: string[];

@@ -15,6 +15,7 @@ const BLOCK_SELECTOR = [
   "main > section li:not(.ft-item):not(.ft-hunk)",
   "main > section .ft-item > .ft-row",
   "main > section figure",
+  "main [data-nsx-field]",
 ].join(",");
 
 export const squash = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -45,13 +46,19 @@ function flash(node: Element): void {
   window.setTimeout(() => node.classList.remove("nsx-c-flash"), FLASH_MS);
 }
 
-function scrollAndFlash(node: Element): void {
+export function scrollAndFlash(node: Element): void {
   node.scrollIntoView({ block: "center" });
   flash(node);
 }
 
 function sectionHeading(from: Element | null): string {
   return squash(from?.closest("section")?.querySelector(":scope > h2")?.textContent ?? "");
+}
+
+/** Manifest path of the innermost `data-nsx-field` at or above `from`, inside `main`. */
+function fieldOf(from: Element | null, main: Element): string {
+  const holder = from?.closest<HTMLElement>("[data-nsx-field]");
+  return holder && main.contains(holder) ? (holder.dataset.nsxField ?? "") : "";
 }
 
 /** Key the page runtime stores in `#ref-popover[data-key]` for the span that opened it. */
@@ -103,6 +110,10 @@ export function createTargets(t: CommentStrings, main: HTMLElement) {
     if (block.classList.contains("ft-row")) return { section: heading, where: featurePath(block) };
     if (block.matches("figure")) {
       return { section: heading, where: squash(block.querySelector("figcaption")?.textContent ?? "") };
+    }
+    const field = block as HTMLElement;
+    if (field.hasAttribute("data-nsx-field") && !field.matches("p, li")) {
+      return { section: heading, where: field.dataset.nsxField ?? "" };
     }
     const isItem = tagName === "LI";
     const peers = [...(section?.querySelectorAll(isItem ? "li" : "p") ?? [])].filter(isPageBlock);
@@ -162,6 +173,7 @@ export function createTargets(t: CommentStrings, main: HTMLElement) {
         return {
           key,
           section: where.section,
+          field: fieldOf(block, main),
           where: where.where,
           excerpt: excerptOf(block),
           files: filesOf(block),
@@ -197,6 +209,7 @@ export function createTargets(t: CommentStrings, main: HTMLElement) {
         return {
           key,
           section: sectionHeading(trigger),
+          field: fieldOf(trigger, main),
           where: [route, place].filter(Boolean).join(" › "),
           excerpt: cut(squash(li.querySelector(".ft-explain")?.textContent ?? ""), EXCERPT_LIMIT),
           files: at ? [at] : [],
@@ -246,6 +259,7 @@ export function createTargets(t: CommentStrings, main: HTMLElement) {
         return {
           key,
           section: sectionHeading(sortEl),
+          field: fieldOf(sortEl, main),
           where: `${t.locPopover}: ${label}`,
           excerpt: cut(textWithout(pop, ".ref-rels, .ref-view, .term-kicker, .ref-path, .ref-name"), EXCERPT_LIMIT),
           files: path ? [path] : [],
@@ -306,6 +320,7 @@ export function createTargets(t: CommentStrings, main: HTMLElement) {
         return {
           key,
           section: t.locFile,
+          field: "",
           where: `${path}:${span}`,
           excerpt: cut(code, EXCERPT_LIMIT),
           files: [`${path}:${from}`],
@@ -351,7 +366,7 @@ export function createTargets(t: CommentStrings, main: HTMLElement) {
       return li && panel.contains(li) ? hunkTarget(li, panel) : null;
     }
 
-    if (start.closest(".nsx-c-ui")) return null;
+    if (start.closest(".nsx-c-ui, [data-nsx-input], [data-nsx-decision]")) return null;
     const diagram = start.closest<HTMLElement>(".lens-diagram");
     if (diagram) return blockTarget(diagram);
 

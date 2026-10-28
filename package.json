@@ -9,7 +9,6 @@
   },
   "files": [
     "SKILL.md",
-    "artifact-playbook.md",
     "scripts"
   ],
   "engines": {

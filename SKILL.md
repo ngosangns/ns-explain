@@ -1,30 +1,27 @@
 ---
 name: ns-explain
-description: Explain a commit, a branch, or uncommitted changes like the reader is five, through creational, structural, and behavioral lenses, with pseudocode flows in chat and an interactive Cytoscape diagram in the HTML export, replying in whatever language the user asked in (Vietnamese by default when ambiguous). Use when the user runs /ns-explain, or asks to explain or review a commit, a branch, a diff, or uncommitted changes, including eli5, explain like I'm 5, giải thích cho dễ hiểu, tiếng Việt, creational, structural, behavioral, vẽ diagram. When the user asks what a concept means (giải thích khái niệm, từ này là gì), explain it in plain language and, in the HTML export, attach a click popover to each of those words. Also use when the user additionally wants the explanation saved or shared as a file — xuất file, export html, lưu lại, tạo file để xem lại, send this as a doc. This skill does not open merge requests and is not tied to a forge; the optional HTML export is a standalone document, not a live browser review session.
+description: Two jobs with one CLI. (1) Explain a commit, a branch, or uncommitted changes like the reader is five, through creational, structural, and behavioral lenses, with pseudocode flows in chat and an interactive Cytoscape diagram in the HTML export, replying in whatever language the user asked in (Vietnamese by default when ambiguous). Use when the user runs /ns-explain, or asks to explain or review a commit, a branch, a diff, or uncommitted changes, including eli5, explain like I'm 5, giải thích cho dễ hiểu, tiếng Việt, creational, structural, behavioral, vẽ diagram. When the user asks what a concept means (giải thích khái niệm, từ này là gì), explain it in plain language and, in the HTML export, attach a click popover to each of those words. Also use when the user additionally wants the explanation saved or shared as a file — xuất file, export html, lưu lại, tạo file để xem lại, send this as a doc. (2) Plan work before coding: research the code base, docs, web, and history, then propose options, a decision, ordered steps, risks, and open questions, with sources cited. Use when the user asks for a plan, planning, lên kế hoạch, kế hoạch, design doc, spec, roadmap, "how should we build", or research then propose; the optional HTML export has answer boxes and an Approve / Request changes button. This skill does not open merge requests and is not tied to a forge; the HTML export is a standalone document, not a live browser review session.
 ---
 
 # ns-explain
 
-Explain a code change so a newcomer understands it. Reply simply enough for a
-five-year-old, in the language the user asked in (default Vietnamese when ambiguous
-or when they wrote in Vietnamese), and always include the three lenses and the
-pseudocode flows.
+Two jobs: explain a code change so a newcomer understands it, and plan work
+with sourced research. Reply simply enough for a five-year-old, in the
+language the user asked in (default Vietnamese when ambiguous or when they
+wrote in Vietnamese).
 
-Read the change. Do not push, commit, or open a review on a forge.
+Do not push, commit, or open a review on a forge.
 
-## What to read
+## Choose a template
 
-The user names the target. If they do not, explain the uncommitted changes.
+| Situation | Template | Go to |
+| --- | --- | --- |
+| The user names a commit, a branch, a diff, or uncommitted changes and wants it explained or reviewed. | `reviewer` | `## Template: reviewer` |
+| The user wants a plan, a design, a spec, a roadmap, or research followed by a proposal. | `planner` | `## Template: planner` |
 
-Use GitButler when `but` manages the repo. Otherwise use git.
-
-- Uncommitted: `but diff`, or `git diff` and `git status`.
-- One commit: `but show <commit>`, or `git show <commit>`.
-- A branch: `but branch show <branch> -f` and `but diff <branch>`, or `git log <base>..<branch>` and `git diff <base>...<branch>`.
-
-Read the changed files when the diff is truncated. Explain only what that diff shows. If nothing changed, say so and stop.
-
-Learn the repo layout enough to know each component's package path (module or import path, e.g. `github.com/acme/internal/orders`, `packages/web`) and its path inside that package — use workspace manifests, package.json/go.mod names, and directory layout.
+Run `node <this skill's dir>/scripts/ns-explain.ts templates` to list the
+templates. If the request fits both, plan first, then explain the change after
+it exists. The reviewer manifest field `plan` links the two.
 
 ## Reply
 
@@ -47,8 +44,29 @@ Respect ubiquitous language — both the domain's and the industry's. Words the 
 
 **Pinned terms (glossary).** The user can pin extra terms that must never be translated, such as product or editor names (`toolbar`, `composer`, `word document`). They live in two JSON files, merged: `~/.ns-explain/glossary.json` for every repo on this machine and `.ns-explain/glossary.json` in the repo you run in. Format: `{"keep": ["term", "multi word term"]}`.
 
-- Before you write any reply, run `node <this skill's dir>/scripts/ns-explain.ts glossary` and keep every term it prints exactly as written, in the chat reply and in the manifest (titles, prose, labels, notes). `playbook` prints the same list first.
+- Before you write any reply, run `node <this skill's dir>/scripts/ns-explain.ts glossary` and keep every term it prints exactly as written, in the chat reply and in the manifest (titles, prose, labels, notes). `playbook <template>` prints the same list first.
 - When the user asks you to stop translating a word, or to always use a word as written, add it to one of those files. Pick the repo file for a term that belongs to this project, and the user file for a term that applies everywhere. Create the file and the `.ns-explain` folder if they are missing, keep the existing terms, and say which file you changed. Do not put such a rule only in the chat or in a manifest: the next report would translate the word again.
+
+## Template: reviewer
+
+Explain a code change so a newcomer understands it. Always include the three
+lenses and the pseudocode flows.
+
+### What to read
+
+The user names the target. If they do not, explain the uncommitted changes.
+
+Use GitButler when `but` manages the repo. Otherwise use git.
+
+- Uncommitted: `but diff`, or `git diff` and `git status`.
+- One commit: `but show <commit>`, or `git show <commit>`.
+- A branch: `but branch show <branch> -f` and `but diff <branch>`, or `git log <base>..<branch>` and `git diff <base>...<branch>`.
+
+Read the changed files when the diff is truncated. Explain only what that diff shows. If nothing changed, say so and stop.
+
+Learn the repo layout enough to know each component's package path (module or import path, e.g. `github.com/acme/internal/orders`, `packages/web`) and its path inside that package — use workspace manifests, package.json/go.mod names, and directory layout.
+
+### Chat reply
 
 Whenever you name a component from the code — a type, function, class, interface, variable, endpoint, table — also name its package path, its path inside that package, and the line it is defined on when you know it, e.g. `OrderFilter` (`github.com/acme/internal/orders`, `filter.go:42`). This applies wherever a component is named in the three lenses and the diagram nodes — not in the feature tree or "Nói cho dễ hiểu", which stay features-only.
 
@@ -79,15 +97,51 @@ Whenever you name a component from the code — a type, function, class, interfa
 
 If this conversation already explained the change and the user only asks for the flows, the diagram, or a concept, produce just that and do not repeat the essay.
 
-## Optional: export as an HTML artifact
+### Optional: export as an HTML artifact
 
 Only do this when the user also asks to save, export, or share the explanation as a file (xuất file, export html, lưu lại, tạo file, send this as a doc) — a bare "explain this commit" stays chat-only, as above.
 
 The exported document comes from a fixed template rendered by the skill's own CLI — never hand-write the HTML document, its CSS, or its wiring; you author only a JSON manifest. This is what keeps every export structurally identical. Do not invoke any other skill for this — the export workflow lives here.
 
-1. Run `node <this skill's dir>/scripts/ns-explain.ts playbook` and read it end to end — it prints the manifest schema, the `.ref` component-reference contract, the diagram's JSON DSL, and the render/serve commands. Follow it.
+1. Run `node <this skill's dir>/scripts/ns-explain.ts playbook reviewer` and read it end to end — it prints the shared rules, the manifest schema, the `.ref` component-reference contract, the diagram's JSON DSL, and the render/serve commands. Follow it.
 2. Write the manifest to `.ns-explain/<short-kebab-name>.json` under the current working directory, reusing the content you already produced (one-liner, feature tree, plain-terms paragraphs, the three lenses, the pseudocode flows, the graph model, and any concepts the user asked about) — do not re-derive it from the diff a second time. Put each requested concept in `concepts` as `{term, explain}` where `explain` is the reply text from the Concepts block. The playbook owns that field: render wraps the words, so do not hand-write popover spans. If an export of this explanation already exists, add the concepts to its manifest and render again. If that export has no manifest, explain in chat and leave the HTML alone.
    - If the explained change adds or edits tests, also fill `testResults` (the report's last section; the playbook has the shape). Take every number from a test run that actually happened in this session: the real command, the real passed/total/skipped counts, the real failure messages. Never invent or round numbers. If no run happened, set `testResults.notRun` to the reason instead. State honestly whether the run was `full` (whole repo), `package` (the package holding the change), or `related` (only those specs), and say so in `scopeNote`. If an earlier run failed and a fix made it pass, keep that run in `earlier`. Each added or modified test gets its verbatim name and a sentence on the behavior it checks. Omit the field when the change touches no tests.
 3. Run `node <this skill's dir>/scripts/ns-explain.ts render .ns-explain/<name>.json` — it builds the TypeScript diagram viewer and page runtime, packs that bundle into `.ns-explain/<name>.html`, and embeds every referenced file's body. The export is one HTML file. Fix anything it warns about and re-render.
 4. Serve it: run `node <this skill's dir>/scripts/ns-explain.ts serve .ns-explain/<name>.html` as a background process. It serves the file's directory over a local HTTP server and opens the browser. Give the user the URL it prints. Stop it when the session ends.
 5. Stop there. Deliver a finished exported document — no polling. The page has a built-in comment layer (hover a block or select text, then click the comment icon; this also works inside feature popovers, reference popovers and the file view). The `Comments` button lists them with jump, edit and delete, and the `Copy comments` button copies every comment with its position. When the user pastes that block back, treat each numbered comment as an edit to the manifest: change `.ns-explain/<name>.json` accordingly, render again, and keep the server running.
+
+## Template: planner
+
+Plan work before anyone writes code. Research first, then propose. Every claim
+in the plan cites a source you really read.
+
+### What to do
+
+1. If the request is ambiguous, ask the user in chat first. Ask only what you cannot find yourself.
+2. Research the code base, the docs, the web, and the history. Note each source as you read it.
+3. Compare options against criteria. Choose one and say why.
+4. Split the work into steps. Each step is small enough for one commit and has a check.
+
+Do not change code while you plan. Do not write a plan from memory.
+
+### Chat reply
+
+1. One sentence: the goal.
+2. What I found. Name the sources: file and line, document, URL, command, earlier commit.
+3. Options and the choice. Two or three sentences on why this option wins.
+4. Steps in order. One line each, with the check for each step.
+5. Risks. One line each, with the way to reduce it.
+6. Open questions the user must answer. Say what you will assume if they do not answer.
+
+Mark a claim you did not verify as an inference.
+
+### Optional: export as an HTML artifact
+
+Do this when the user asks for a file, a document to share, or a page to approve (xuất file, export html, lưu lại, gửi cho team). A plan with many steps SHOULD get the export: the page holds the sources, the matrix, and the answer boxes.
+
+1. Run `node <this skill's dir>/scripts/ns-explain.ts playbook planner` and read it end to end. It prints the glossary, the shared rules, and the planner schema. Follow it.
+2. Write the manifest to `.ns-explain/<short-kebab-name>.json` with `"template": "planner"`. Reuse the research you already did. Do not read the sources a second time.
+3. Run `node <this skill's dir>/scripts/ns-explain.ts render .ns-explain/<name>.json`. Add `--check-sources` when the plan cites web pages. Fix every warning and render again.
+4. Run `node <this skill's dir>/scripts/ns-explain.ts serve .ns-explain/<name>.html` as a background process. Give the user the URL it prints.
+5. Review loop. The user answers the open questions on the page, comments on any block, and presses Approve or Request changes. They paste the copied block back. It has `Field:` lines, `## Answers`, and `## Decision`. Write each answer into `questions[].answer`. Resolve each comment by editing the field it names. Set `status: "approved"` only after an `approve` verdict and when no blocking question lacks an answer. Render again. The page lists the changes since the last render. Keep the server running.
+6. After approval, run `node <this skill's dir>/scripts/ns-explain.ts tasks .ns-explain/<name>.json` and load the steps into your todo list in dependency order. Update each step `state` in the manifest while you work.

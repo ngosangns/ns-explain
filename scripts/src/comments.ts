@@ -2,10 +2,12 @@
 // comment icon. That works on the page itself and inside the boxes it opens: the
 // diff popover behind a feature, the popover behind a dotted/dashed underline or a
 // diagram element, the full-screen diagram, and the "View file" dialog.
-// Every comment stays in memory (a reload drops them). The dock at the bottom right
+// Every comment stays in memory (a reload drops them); answers and the decision persist (see comments-inputs.ts). The dock at the bottom right
 // lists them (jump, edit, delete, clear) and copies them all, with where each one
 // sits, so they can be pasted straight into the agent that owns the manifest.
 import { COMMENTS_CSS } from "./comments-css.ts";
+import { createInputs } from "./comments-inputs.ts";
+import { buildReportText, hasDecision, nonEmptyAnswers } from "./comments-report.ts";
 import { createTargets, cut, squash } from "./comments-targets.ts";
 import { DEFAULT_STRINGS, type Anchor, type CommentStrings, type Target } from "./comments-types.ts";
 
@@ -89,6 +91,7 @@ export function mountComments(): void {
 
   const targets = createTargets(t, main);
   const comments: ReviewComment[] = [];
+  const inputs = createInputs(main, ui.name ?? location.pathname, () => refresh());
   let nextId = 1;
   let draft: Draft | null = null;
   let editingId: number | null = null;
@@ -154,25 +157,30 @@ export function mountComments(): void {
     });
   }
 
+  const verdictLabel = (v: string) => (v === "approve" ? t.verdictApprove : t.verdictChanges);
+
+  /** Answers and decision as the page holds them now, and the sizes the buttons show. */
+  function extras() {
+    const answers = nonEmptyAnswers(inputs.answers());
+    const decision = inputs.decision();
+    return { answers, decision, total: comments.length + answers.length + (hasDecision(decision) ? 1 : 0) };
+  }
+
   function buildReport(): string {
-    const ordered = inOrder();
-    const lines = [`# Review comments on "${ui.title ?? document.title}"`];
-    if (ui.name) {
-      lines.push(`Report: .ns-explain/${ui.name}.html (manifest: .ns-explain/${ui.name}.json)`);
-    }
-    lines.push(
-      `${ordered.length} comment${ordered.length === 1 ? "" : "s"}. ` +
-      "Apply each one to the manifest, then render again.",
-      "",
-    );
-    ordered.forEach((c, i) => {
-      lines.push(`## ${i + 1}. ${whereOf(c.anchor)}`);
-      lines.push(`Block: "${c.anchor.excerpt}"`);
-      if (c.quote) lines.push(`Selected: "${c.quote}"`);
-      if (c.anchor.files.length) lines.push(`Files: ${c.anchor.files.join(", ")}`);
-      lines.push(`Comment: ${c.text.replace(/\n/g, "\n  ")}`, "");
-    });
-    return lines.join("\n").trimEnd() + "\n";
+    return buildReportText({
+      title: ui.title ?? document.title,
+      name: ui.name,
+      comments: inOrder().map((c) => ({
+        where: whereOf(c.anchor),
+        field: c.anchor.field,
+        excerpt: c.anchor.excerpt,
+        quote: c.quote,
+        files: c.anchor.files,
+        text: c.text,
+      })),
+      answers: inputs.answers(),
+      decision: inputs.decision(),
+    }) ?? "";
   }
 
   async function writeClipboard(text: string): Promise<boolean> {
@@ -233,11 +241,11 @@ export function mountComments(): void {
     }
     syncMarks(blocks, blockMarks, "nsx-c-has");
     syncMarks(triggers, dotMarks, "nsx-c-dot");
-    const n = comments.length;
-    copyBtn.textContent = `${t.copy} (${n})`;
-    copyBtn.disabled = n === 0;
-    copyBtn.title = n === 0 ? t.copyEmpty : "";
-    listBtn.textContent = `${t.list} (${n})`;
+    const total = extras().total;
+    copyBtn.textContent = `${t.copy} (${total})`;
+    copyBtn.disabled = total === 0;
+    copyBtn.title = total === 0 ? t.copyEmpty : "";
+    listBtn.textContent = `${t.list} (${total})`;
     if (hoverTarget) badge.textContent = String(commentsAt(hoverTarget.key).length || "");
     if (panelOpen && panelEditing === null) renderPanel();
   }
@@ -567,10 +575,10 @@ export function mountComments(): void {
 
   function renderPanel(): void {
     panel.replaceChildren();
-    const n = comments.length;
+    const { answers, decision, total } = extras();
 
     const head = el("div", "nsx-c-phead");
-    head.appendChild(el("span", "nsx-c-ptitle", `${t.list} (${n})`));
+    head.appendChild(el("span", "nsx-c-ptitle", `${t.list} (${total})`));
     const clear = button("nsx-c-link nsx-c-danger", clearArmed ? t.clearConfirm : t.clear, () => {
       if (!clearArmed) {
         clearArmed = true;
@@ -584,12 +592,13 @@ export function mountComments(): void {
       }
       disarmClear();
       comments.length = 0;
+      inputs.clear();
       panelEditing = null;
       if (draft) closeComposer();
       refresh();
       renderPanel();
     });
-    clear.disabled = n === 0;
+    clear.disabled = total === 0;
     const close = button("nsx-c-x", "✕", () => {
       setPanel(false);
       listBtn.focus();
@@ -599,8 +608,36 @@ export function mountComments(): void {
     panel.appendChild(head);
 
     const body = el("div", "nsx-c-pbody");
-    if (n === 0) body.appendChild(el("div", "nsx-c-pempty", t.copyEmpty));
-    else inOrder().forEach((c, i) => body.appendChild(renderPanelItem(c, i)));
+    if (total === 0) body.appendChild(el("div", "nsx-c-pempty", t.copyEmpty));
+    inOrder().forEach((c, i) => body.appendChild(renderPanelItem(c, i)));
+    if (answers.length) {
+      body.appendChild(el("div", "nsx-c-psection", `${t.answers} (${answers.length})`));
+      answers.forEach((a, i) => {
+        const item = el("div", "nsx-c-pitem");
+        item.appendChild(el("div", "nsx-c-pwhere", `${i + 1}. ${a.label || a.field}`));
+        item.appendChild(el("div", "nsx-c-text", a.value));
+        const actions = el("div", "nsx-c-itemactions");
+        actions.appendChild(button("nsx-c-link", t.jump, () => {
+          inputs.reveal(a.field);
+          if (innerWidth < NARROW_PX) setPanel(false);
+        }));
+        item.appendChild(actions);
+        body.appendChild(item);
+      });
+    }
+    if (hasDecision(decision)) {
+      body.appendChild(el("div", "nsx-c-psection", t.decision));
+      const item = el("div", "nsx-c-pitem");
+      if (decision.verdict) item.appendChild(el("div", "nsx-c-pwhere", verdictLabel(decision.verdict)));
+      if (decision.note.trim()) item.appendChild(el("div", "nsx-c-text", decision.note.trim()));
+      const actions = el("div", "nsx-c-itemactions");
+      actions.appendChild(button("nsx-c-link", t.jump, () => {
+        inputs.reveal(null);
+        if (innerWidth < NARROW_PX) setPanel(false);
+      }));
+      item.appendChild(actions);
+      body.appendChild(item);
+    }
     panel.appendChild(body);
   }
 
@@ -616,11 +653,12 @@ export function mountComments(): void {
 
   let copyTimer = 0;
   copyBtn.addEventListener("click", async () => {
-    if (comments.length === 0) return;
+    const total = extras().total;
+    if (total === 0) return;
     const ok = await writeClipboard(buildReport());
     copyBtn.classList.toggle("is-ok", ok);
     copyBtn.classList.toggle("is-fail", !ok);
-    copyBtn.textContent = ok ? `${t.copied} (${comments.length})` : t.copyFailed;
+    copyBtn.textContent = ok ? `${t.copied} (${total})` : t.copyFailed;
     window.clearTimeout(copyTimer);
     copyTimer = window.setTimeout(() => {
       copyBtn.classList.remove("is-ok", "is-fail");

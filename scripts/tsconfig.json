@@ -11,5 +11,5 @@
     "types": [],
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "ns-explain.ts", "glossary.ts", "serve.ts", "types/**/*.d.ts"]
+  "include": ["src/**/*.ts", "core/**/*.ts", "templates/**/*.ts", "ns-explain.ts", "glossary.ts", "serve.ts", "types/**/*.d.ts"]
 }

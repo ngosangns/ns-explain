@@ -36,7 +36,7 @@ function run(cmd: string, files: { user?: string; repo?: string } = {}, cwdIsHom
   mkdirSync(join(repo, ".ns-explain"), { recursive: true });
   if (files.user != null) writeFileSync(join(home, ".ns-explain", "glossary.json"), files.user);
   if (files.repo != null) writeFileSync(join(repo, ".ns-explain", "glossary.json"), files.repo);
-  const r = Bun.spawnSync(["bun", CLI, cmd], {
+  const r = Bun.spawnSync(["bun", CLI, ...cmd.split(" ")], {
     cwd: cwdIsHome ? home : repo,
     // os.homedir() reads HOME on POSIX and USERPROFILE on Windows.
     env: { ...process.env, HOME: home, USERPROFILE: home },
@@ -140,7 +140,7 @@ describe("a broken glossary file", () => {
 
 describe("playbook", () => {
   test("prints the pinned terms before the schema", () => {
-    const out = run("playbook", { repo: keep("toolbar") });
+    const out = run("playbook reviewer", { repo: keep("toolbar") });
     expect(out.terms).toEqual(["toolbar"]);
     const terms = out.stdout.indexOf("- toolbar");
     const schema = out.stdout.indexOf("# ns-explain artifact playbook");
@@ -149,19 +149,19 @@ describe("playbook", () => {
   });
 
   test("starts with the plain playbook when nothing is pinned", () => {
-    const out = run("playbook");
+    const out = run("playbook reviewer");
     expect(out.stdout.startsWith("# ns-explain artifact playbook")).toBe(true);
   });
 
   test("tells the agent where to add a term", () => {
-    const out = run("playbook");
+    const out = run("playbook reviewer");
     expect(out.stdout).toContain("If the user asks you to stop translating a word, add it to the glossary");
     expect(out.stdout).toContain("~/.ns-explain/glossary.json");
     expect(out.stdout).toContain(".ns-explain/glossary.json");
   });
 
   test("a broken glossary file does not stop the playbook", () => {
-    const out = run("playbook", { repo: "oops" });
+    const out = run("playbook reviewer", { repo: "oops" });
     expect(out.exitCode).toBe(0);
     expect(out.stdout).toContain("# ns-explain artifact playbook");
     expect(out.warnings.join("\n")).toContain("not valid JSON");

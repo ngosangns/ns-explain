@@ -287,3 +287,172 @@ describe("manifest checks", () => {
     expect(ui.comments.copy).toBe("Sao chép bình luận");
   });
 });
+
+/** Run any CLI command in a scratch directory. */
+function cli(args: string[], m?: Record<string, unknown>) {
+  const dir = join(work, `case-${++n}`);
+  mkdirSync(join(dir, ".ns-explain"), { recursive: true });
+  if (m) writeFileSync(join(dir, ".ns-explain", "r.json"), JSON.stringify(m));
+  const run = Bun.spawnSync(["bun", CLI, ...args], { cwd: dir, stderr: "pipe", stdout: "pipe" });
+  return { stdout: run.stdout.toString(), stderr: run.stderr.toString(), exitCode: run.exitCode ?? -1 };
+}
+
+describe("templates", () => {
+  test("an unknown template exits 2 and lists the valid ids", () => {
+    const r = cli(["render", ".ns-explain/r.json"], manifest({ template: "nope" }));
+    expect(r.exitCode).toBe(2);
+    expect(r.stderr).toContain('unknown template "nope"');
+    expect(r.stderr).toContain("reviewer");
+    expect(r.stderr).toContain("planner");
+  });
+
+  test("a manifest without template renders as the reviewer", () => {
+    const r = render(manifest({ lang: "en" }));
+    expect(r.exitCode).toBe(0);
+    expect(r.html).toContain(">Features affected<");
+    expect(r.html).toContain(">Structural<");
+  });
+
+  test("template reviewer renders the same page as no template", () => {
+    const a = render(manifest({ lang: "en" })).html;
+    const b = render(manifest({ lang: "en", template: "reviewer" })).html;
+    expect(b).toBe(a);
+  });
+
+  test("`templates` lists reviewer and planner with a summary", () => {
+    const r = cli(["templates"]);
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toContain("reviewer");
+    expect(r.stdout).toContain("planner");
+    expect(r.stdout).toContain("Lên kế hoạch: yêu cầu");
+  });
+
+  test("bare `playbook` lists the templates and prints no rules", () => {
+    const r = cli(["playbook"]);
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toContain("reviewer");
+    expect(r.stdout).toContain("planner");
+    expect(r.stdout).not.toContain("# ns-explain artifact playbook");
+  });
+
+  test("`playbook reviewer` prints the shared rules and the reviewer schema", () => {
+    const r = cli(["playbook", "reviewer"]);
+    expect(r.exitCode).toBe(0);
+    const shared = r.stdout.indexOf("# ns-explain artifact playbook");
+    const reviewer = r.stdout.indexOf("# Reviewer template");
+    expect(shared).toBeGreaterThan(-1);
+    expect(reviewer).toBeGreaterThan(shared);
+    expect(r.stdout).toContain("## Naming components in prose");
+    expect(r.stdout).toContain("## Manifest schema");
+    expect(r.stdout).toContain("## Answers");
+  });
+
+  test("`playbook` with an unknown template exits 2", () => {
+    const r = cli(["playbook", "nope"]);
+    expect(r.exitCode).toBe(2);
+    expect(r.stderr).toContain("reviewer");
+  });
+
+  test("`tasks` rejects a reviewer manifest", () => {
+    const r = cli(["tasks", ".ns-explain/r.json"], manifest());
+    expect(r.exitCode).toBe(2);
+    expect(r.stderr).toContain("only planner manifests have steps");
+  });
+});
+
+describe("data-nsx-field hooks", () => {
+  const full = manifest({
+    lang: "en",
+    featureTree: [{
+      label: "orders page",
+      changes: [{ kind: "added", text: "a date filter", hunks: [{ path: "a.ts", diff: "+ x", explain: "Adds a filter." }] }],
+    }],
+    plainTerms: "<p>Someone opens the page.</p>",
+    lenses: { creational: "<p>c</p>", structural: "<p>s</p>", behavioral: "<p>b</p>" },
+    pseudocode: [{ title: "A", code: "do a" }, { title: "B", code: "do b" }],
+    testResults: { ...passingRun, files: [] },
+  });
+
+  test("every reviewer block carries the manifest path it comes from", async () => {
+    const r = render(full, { "a.ts": "x" });
+    expect(r.exitCode).toBe(0);
+    const seen: string[] = [];
+    await new HTMLRewriter()
+      .on("[data-nsx-field]", { element(el) { seen.push(`${el.tagName}:${el.getAttribute("data-nsx-field")}`); } })
+      .transform(new Response(r.html))
+      .text();
+    expect(seen).toEqual([
+      "p:oneLiner",
+      "section:featureTree",
+      "section:plainTerms",
+      "section:lenses.creational",
+      "section:lenses.structural",
+      "section:lenses.behavioral",
+      "section:graph",
+      "figure:pseudocode[0]",
+      "figure:pseudocode[1]",
+      "section:testResults",
+    ]);
+  });
+});
+
+describe("reviewer plan link", () => {
+  const step = (id: string, title: string, files: string[], extra: Record<string, unknown> = {}) => ({
+    id, title, detail: "", files, dependsOn: [], verify: "bun test", owner: "agent", state: "todo", ...extra,
+  });
+  const planner = (phases: unknown[]) => JSON.stringify({
+    template: "planner", title: "Order plan", oneLiner: "Plan.", status: "in-progress",
+    request: { original: "Do it.", summary: "Do it." }, phases,
+  });
+  const change = (extra: Record<string, unknown> = {}) => manifest({
+    lang: "en",
+    graph: { nodes: [{ id: "a", label: "A", path: "src/a.ts" }], edges: [], flows: [] },
+    ...extra,
+  });
+  const sectionOf = (html: string) => html.match(/<section[^>]*data-nsx-field="plan"[\s\S]*?<\/section>/)?.[0] ?? "";
+
+  test("lists only the plan steps that touch the change and counts them", () => {
+    const plan = planner([{ id: "P1", title: "Build", goal: "g", steps: [
+      step("T1.1", "Edit A", ["src/a.ts:12"], { state: "done" }),
+      step("T1.2", "Edit B", ["src/b.ts"]),
+      step("T1.3", "Test C", ["src/a.ts"], { state: "doing" }),
+    ] }]);
+    const r = render(change({ plan: ".ns-explain/plan.json", testResults: { ...passingRun, files: [] } }), { ".ns-explain/plan.json": plan, "src/a.ts": "x" });
+    expect(r.exitCode).toBe(0);
+    expect(r.warnings).toEqual([]);
+    const s = sectionOf(r.html);
+    expect(s).toContain("Related plan");
+    expect(s).toContain("Order plan");
+    expect(s).toContain("T1.1");
+    expect(s).toContain("T1.3");
+    expect(s).not.toContain("T1.2");
+    expect(s).toContain("2 / 3 plan steps touch this change");
+    expect(s.match(/data-plan-done/g)?.length).toBe(1);
+    expect(r.html.indexOf("Related plan")).toBeLessThan(r.html.indexOf("Test results"));
+  });
+
+  test("an unreadable plan path warns and renders no section", () => {
+    const r = render(change({ plan: ".ns-explain/nope.json" }), { "src/a.ts": "x" });
+    expect(r.exitCode).toBe(0);
+    expect(r.warnings).toContain("plan: cannot read .ns-explain/nope.json");
+    expect(sectionOf(r.html)).toBe("");
+  });
+
+  test("a plan with a dependency cycle warns and renders no section", () => {
+    const plan = planner([{ id: "P1", title: "Build", goal: "g", steps: [
+      step("T1.1", "A", ["src/a.ts"], { dependsOn: ["T1.2"] }),
+      step("T1.2", "B", ["src/a.ts"], { dependsOn: ["T1.1"] }),
+    ] }]);
+    const r = render(change({ plan: ".ns-explain/plan.json" }), { ".ns-explain/plan.json": plan, "src/a.ts": "x" });
+    expect(r.exitCode).toBe(0);
+    expect(r.warnings.some((w) => w.startsWith("plan: cannot be used"))).toBe(true);
+    expect(sectionOf(r.html)).toBe("");
+  });
+
+  test("a manifest without plan renders no plan section", () => {
+    const r = render(change(), { "src/a.ts": "x" });
+    expect(r.exitCode).toBe(0);
+    expect(sectionOf(r.html)).toBe("");
+    expect(r.html).not.toContain("Related plan");
+  });
+});

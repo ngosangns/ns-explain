@@ -1,0 +1,218 @@
+{
+  "template": "planner",
+  "name": "page-size-plan",
+  "lang": "vi",
+  "title": "Kế hoạch: trang đơn hàng hiện 50 đơn thay vì 10",
+  "oneLiner": "Đổi cách phân trang của trang đơn hàng từ 10 lên 50 đơn, chỉ sửa một hằng <span class=\"ref\" tabindex=\"0\" data-path=\"orders/filter.ts\" data-line=\"7\" data-desc=\"Số đơn trên một trang.\">PAGE_SIZE</span>.",
+  "status": "draft",
+  "request": {
+    "original": "Trang đơn hàng chỉ hiện 10 đơn, phải bấm tiếp liên tục. Tôi muốn hiện 50 đơn mỗi trang. Đừng làm hỏng nút tiếp.",
+    "summary": "Tăng số đơn trên một trang của trang đơn hàng từ 10 lên 50. Nút tiếp phải vẫn đúng ở trang cuối.",
+    "constraints": [
+      "Không đổi giao diện của trang đơn hàng.",
+      "Không thêm thư viện mới."
+    ],
+    "clarifications": [
+      { "q": "Số đơn mỗi trang là bao nhiêu?", "a": "50 đơn.", "by": "user" },
+      { "q": "Có cần cho người dùng tự chọn số đơn không?", "a": "Không nói rõ. Agent giả định là không cần.", "by": "assumed" }
+    ]
+  },
+  "starting": {
+    "summary": "<p>Trang đơn hàng lấy một trang từ danh sách đầy đủ bằng <span class=\"ref\" tabindex=\"0\" data-path=\"orders/filter.ts\" data-line=\"9\" data-desc=\"Cắt một trang ra khỏi danh sách đơn.\">pageOfOrders</span>. Hàm xử lý yêu cầu là <span class=\"ref\" tabindex=\"0\" data-path=\"orders/handler.ts\" data-line=\"3\" data-desc=\"Trả lời yêu cầu xem một trang đơn.\">handleListOrders</span>.</p>",
+    "facts": [
+      { "text": "Số đơn trên một trang nằm trong một hằng duy nhất: <span class=\"ref\" tabindex=\"0\" data-path=\"orders/filter.ts\" data-line=\"7\" data-desc=\"Số đơn trên một trang.\">PAGE_SIZE</span>.", "sources": ["S5"] },
+      { "text": "Người dùng muốn thấy nhiều đơn hơn trong một lần xem.", "sources": ["S6"] }
+    ]
+  },
+  "goals": [
+    {
+      "id": "G1",
+      "text": "Mỗi trang của trang đơn hàng hiện 50 đơn.",
+      "acceptance": ["WHEN the user opens a page with 120 orders in the list THE SYSTEM SHALL show 50 rows on page 0."]
+    },
+    {
+      "id": "G2",
+      "text": "Nút tiếp chỉ hiện khi còn đơn phía sau.",
+      "acceptance": ["WHEN the user is on the last page THE SYSTEM SHALL report that no more orders wait."]
+    }
+  ],
+  "nonGoals": [
+    "Cho người dùng tự chọn số đơn mỗi trang.",
+    "Đổi sang phân trang bằng con trỏ (cursor)."
+  ],
+  "sources": [
+    {
+      "id": "S1", "kind": "web", "title": "AIP-158: Pagination", "url": "https://google.aip.dev/158", "retrieved": "2026-10-28",
+      "quote": "If the user specifies page_size greater than the maximum permitted by the API, the API should coerce down to the maximum permitted page size."
+    },
+    {
+      "id": "S2", "kind": "web", "title": "IANA: Link Relations", "url": "https://www.iana.org/assignments/link-relations/link-relations.xhtml", "retrieved": "2026-10-28",
+      "quote": "Indicates that the link's context is a part of a series, and that the next in the series is the link target."
+    },
+    {
+      "id": "S3", "kind": "code", "title": "Cắt một trang theo PAGE_SIZE", "path": "orders/filter.ts", "line": 10,
+      "quote": "const start = page * PAGE_SIZE;"
+    },
+    {
+      "id": "S4", "kind": "code", "title": "hasMore dùng cùng hằng", "path": "orders/handler.ts", "line": 5,
+      "quote": "return { rows, hasMore: (page + 1) * PAGE_SIZE < all.length };"
+    },
+    {
+      "id": "S5", "kind": "command", "title": "Mọi chỗ dùng PAGE_SIZE", "command": "grep -rn PAGE_SIZE orders",
+      "output": "orders\\filter.ts:7:export const PAGE_SIZE = 50;\norders\\filter.ts:10:  const start = page * PAGE_SIZE;\norders\\filter.ts:11:  return all.slice(start, start + PAGE_SIZE);\norders\\handler.ts:1:import { PAGE_SIZE, pageOfOrders, type Order } from \"./filter.ts\";\norders\\handler.ts:5:  return { rows, hasMore: (page + 1) * PAGE_SIZE < all.length };"
+    },
+    {
+      "id": "S6", "kind": "user", "title": "Yêu cầu của người dùng",
+      "quote": "Trang đơn hàng chỉ hiện 10 đơn, phải bấm tiếp liên tục. Tôi muốn hiện 50 đơn mỗi trang."
+    }
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "text": "Số đơn trên một trang sống ở một chỗ: hằng <span class=\"ref\" tabindex=\"0\" data-path=\"orders/filter.ts\" data-line=\"7\" data-desc=\"Số đơn trên một trang.\">PAGE_SIZE</span>. Cả việc cắt trang lẫn nút tiếp đọc hằng này.",
+      "sources": ["S3", "S4", "S5"], "confidence": "high", "status": "verified"
+    },
+    {
+      "id": "F2",
+      "text": "Nút tiếp được tính từ cùng hằng đó, nên giá trị mới tự đúng ở trang cuối.",
+      "sources": ["S4"], "confidence": "high", "status": "verified"
+    },
+    {
+      "id": "F3",
+      "text": "Hướng dẫn API của Google nói API nên đặt giới hạn tối đa cho số dòng một trang và hạ số yêu cầu xuống mức đó.",
+      "sources": ["S1"], "confidence": "high", "status": "verified"
+    },
+    {
+      "id": "F4",
+      "text": "Nếu sau này cần phân trang bằng con trỏ, quan hệ liên kết next là cách chuẩn để báo còn trang tiếp.",
+      "sources": ["S2"], "confidence": "medium", "status": "inference"
+    },
+    {
+      "id": "F5",
+      "text": "Người dùng chỉ nói về số đơn. Chưa có số đo nào cho thấy 50 dòng làm trang chậm đi.",
+      "sources": ["S6"], "confidence": "low", "status": "inference"
+    }
+  ],
+  "options": [
+    {
+      "id": "O1", "title": "Đổi hằng PAGE_SIZE thành 50",
+      "summary": "Sửa một dòng. Mọi nơi đọc hằng đều nhận giá trị mới.",
+      "pros": ["Thay đổi nhỏ nhất.", "Nút tiếp tự đúng."],
+      "cons": ["Số đơn vẫn cố định, người dùng không chọn được."]
+    },
+    {
+      "id": "O2", "title": "Thêm tham số pageSize có trần",
+      "summary": "Người dùng gửi pageSize. Server hạ về mức tối đa.",
+      "pros": ["Linh hoạt.", "Khớp hướng dẫn API."],
+      "cons": ["Phải đổi giao diện và hợp đồng API."],
+      "rejectedBecause": "Yêu cầu không cần chọn số đơn, và phải đổi giao diện."
+    },
+    {
+      "id": "O3", "title": "Phân trang bằng con trỏ",
+      "summary": "Thay số trang bằng con trỏ và liên kết next.",
+      "pros": ["Tốt khi danh sách rất lớn."],
+      "cons": ["Viết lại cả hai hàm.", "Phải đổi client."],
+      "rejectedBecause": "Quá lớn so với yêu cầu."
+    }
+  ],
+  "criteria": [
+    { "id": "C1", "label": "Rủi ro thấp", "weight": 3 },
+    { "id": "C2", "label": "Công sức nhỏ", "weight": 2 },
+    { "id": "C3", "label": "Linh hoạt", "weight": 2 },
+    { "id": "C4", "label": "Khớp chuẩn API", "weight": 1 }
+  ],
+  "scores": {
+    "O1": { "C1": 5, "C2": 5, "C3": 2, "C4": 2 },
+    "O2": { "C1": 3, "C2": 3, "C3": 5, "C4": 5 },
+    "O3": { "C1": 2, "C2": 1, "C3": 4, "C4": 4 }
+  },
+  "decision": {
+    "chosen": "O1",
+    "because": "Phương án này đáp ứng yêu cầu bằng thay đổi nhỏ nhất. Nút tiếp vẫn đúng vì dùng cùng một hằng.",
+    "drivers": ["F1", "F2", "F3"],
+    "consequences": [
+      { "text": "Chỉ sửa một dòng trong filter.ts.", "tone": "good" },
+      { "text": "Người dùng chưa chọn được số đơn mỗi trang.", "tone": "bad" },
+      { "text": "Có thể thêm trần pageSize sau mà không phải làm lại.", "tone": "neutral" }
+    ]
+  },
+  "phases": [
+    {
+      "id": "P1", "title": "Thay đổi", "goal": "Đổi giá trị và xác nhận nút tiếp vẫn đúng.",
+      "steps": [
+        {
+          "id": "T1.1", "title": "Đọc chỗ dùng PAGE_SIZE",
+          "detail": "<p>Xác nhận chỉ có hai file đọc <span class=\"ref\" tabindex=\"0\" data-path=\"orders/filter.ts\" data-line=\"7\" data-desc=\"Số đơn trên một trang.\">PAGE_SIZE</span>.</p>",
+          "files": ["orders/filter.ts:7"], "dependsOn": [], "estimate": { "o": 0.5, "m": 1, "p": 2 }, "unit": "h",
+          "verify": "grep -rn PAGE_SIZE orders chỉ trả về filter.ts và handler.ts", "owner": "agent", "state": "done", "goals": ["G1"]
+        },
+        {
+          "id": "T1.2", "title": "Đổi PAGE_SIZE từ 10 thành 50",
+          "detail": "<p>Sửa một dòng trong file lọc đơn.</p>",
+          "files": ["orders/filter.ts:7"], "dependsOn": ["T1.1"], "estimate": { "o": 0.25, "m": 0.5, "p": 1 }, "unit": "h",
+          "verify": "Trang 0 của danh sách 120 đơn trả về 50 dòng", "owner": "agent", "state": "doing", "goals": ["G1"]
+        },
+        {
+          "id": "T1.3", "title": "Kiểm tra hasMore ở trang cuối",
+          "detail": "<p>Đọc lại công thức nút tiếp trong hàm xử lý yêu cầu.</p>",
+          "files": ["orders/handler.ts:5"], "dependsOn": ["T1.1"], "estimate": { "o": 0.5, "m": 1, "p": 1.5 }, "unit": "h",
+          "verify": "Trang 2 của danh sách 120 đơn trả về 20 dòng và hasMore là false", "owner": "agent", "state": "todo", "goals": ["G2"]
+        }
+      ]
+    },
+    {
+      "id": "P2", "title": "Kiểm tra và phát hành", "goal": "Chứng minh hành vi mới và đo thời gian tải.",
+      "steps": [
+        {
+          "id": "T2.1", "title": "Viết test cho trang đầu và trang cuối",
+          "detail": "<p>Thêm hai ca: trang 0 có 50 dòng, trang cuối có 20 dòng.</p>",
+          "files": [], "dependsOn": ["T1.2", "T1.3"], "estimate": { "o": 1, "m": 2, "p": 3 }, "unit": "h",
+          "verify": "bun test báo cả hai ca đạt", "owner": "agent", "state": "todo", "goals": ["G1", "G2"]
+        },
+        {
+          "id": "T2.2", "title": "Đo thời gian tải trang với 50 dòng",
+          "detail": "<p>Người dùng mở trang trên máy thật và báo thời gian.</p>",
+          "files": [], "dependsOn": ["T2.1"], "estimate": { "o": 0.5, "m": 1, "p": 3 }, "unit": "h",
+          "verify": "Trang tải dưới 1 giây trên máy thường dùng", "owner": "user", "state": "todo", "goals": ["G1"]
+        },
+        {
+          "id": "T2.3", "title": "Phát hành và theo dõi",
+          "detail": "<p>Phát hành và xem lỗi trong một ngày.</p>",
+          "files": [], "dependsOn": ["T2.1", "T2.2"], "estimate": { "o": 0.25, "m": 0.5, "p": 1 }, "unit": "h",
+          "verify": "Không có lỗi mới trong nhật ký sau một ngày", "owner": "user", "state": "todo", "goals": ["G1"]
+        }
+      ]
+    }
+  ],
+  "risks": [
+    { "id": "R1", "text": "50 dòng làm trang tải chậm hơn.", "likelihood": 3, "impact": 3, "mitigation": "Đo ở bước T2.2 trước khi phát hành.", "steps": ["T2.2"] },
+    { "id": "R2", "text": "Nút tiếp sai ở trang cuối.", "likelihood": 2, "impact": 4, "mitigation": "Thêm test cho trang cuối.", "steps": ["T1.3", "T2.1"] },
+    { "id": "R3", "text": "Một test cũ còn giả định 10 dòng.", "likelihood": 2, "impact": 2, "mitigation": "Chạy toàn bộ test và sửa test hỏng.", "steps": ["T2.1"] }
+  ],
+  "rabbitHoles": [
+    "Đừng đổi sang phân trang bằng con trỏ trong lần này.",
+    "Đừng thêm tham số pageSize khi chưa ai yêu cầu."
+  ],
+  "questions": [
+    {
+      "id": "Q1", "text": "Số đơn mỗi trang có cố định ở 50 không?", "blocking": true,
+      "default": "Cố định 50", "options": ["Cố định 50", "Cho người dùng chọn 10, 50 hoặc 100"]
+    },
+    {
+      "id": "Q2", "text": "Thay đổi áp dụng cho mọi danh sách hay chỉ trang đơn hàng?", "blocking": false,
+      "answer": "Chỉ trang đơn hàng."
+    }
+  ],
+  "assumptions": [
+    { "id": "A1", "text": "Một trang 50 dòng vẫn tải dưới 1 giây.", "checkBy": "đo ở bước T2.2" }
+  ],
+  "charts": [
+    {
+      "id": "CH1", "kind": "bar", "title": "Số lần bấm tiếp để xem 120 đơn", "unit": "trang",
+      "x": ["10 đơn/trang", "50 đơn/trang"], "series": [{ "name": "Số trang", "values": [12, 3] }], "source": "S3"
+    }
+  ],
+  "concepts": [
+    { "term": "phân trang", "explain": "Chia một danh sách dài thành nhiều trang nhỏ để xem từng trang." }
+  ]
+}

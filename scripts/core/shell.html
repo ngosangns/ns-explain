@@ -357,40 +357,15 @@
     flex: none; inline-size: calc(1ch * var(--indent-unit, 4));
     box-shadow: inset -1px 0 0 color-mix(in oklch, var(--color-base-content, CanvasText) 32%, transparent);
   }
-</style>
+</style>@@NSX_CSS@@
 </head>
 <body class="bg-base-200 text-base-content min-h-screen">
 <main class="mx-auto max-w-3xl px-6 py-10 space-y-8">
   <header class="space-y-2">
     <h1 class="text-3xl font-bold">@@NSX_TITLE@@</h1>
-    <p class="text-lg opacity-80">@@NSX_ONELINER@@</p>
+    <p class="text-lg opacity-80" data-nsx-field="oneLiner">@@NSX_ONELINER@@</p>
   </header>
-  <section class="rounded-box bg-base-100 p-6 shadow-sm">
-    <h2 class="text-xl font-semibold mb-3">@@NSX_L_FEATURES@@</h2>
-    @@NSX_FEATURE_TREE@@
-  </section>
-  <section class="rounded-box bg-base-100 p-6 shadow-sm">
-    <h2 class="text-xl font-semibold mb-3">@@NSX_L_PLAIN@@</h2>
-    @@NSX_PLAIN@@
-  </section>
-  <section class="rounded-box bg-base-100 p-6 shadow-sm">
-    <h2 class="text-xl font-semibold mb-3">Creational</h2>
-    @@NSX_CREATIONAL@@
-  </section>
-  <section class="rounded-box bg-base-100 p-6 shadow-sm">
-    <h2 class="text-xl font-semibold mb-3">Structural</h2>
-    @@NSX_STRUCTURAL@@
-  </section>
-  <section class="rounded-box bg-base-100 p-6 shadow-sm">
-    <h2 class="text-xl font-semibold mb-3">Behavioral</h2>
-    @@NSX_BEHAVIORAL@@
-  </section>
-  <section class="rounded-box bg-base-100 p-6 shadow-sm">
-    <h2 class="text-xl font-semibold mb-3">@@NSX_L_DIAGRAM@@</h2>
-    <div class="lens-diagram"><script class="graph-model" type="application/json">@@NSX_GRAPH@@</script></div>
-  </section>
-  @@NSX_FLOWS_SECTION@@
-  @@NSX_TESTS_SECTION@@
+  @@NSX_SECTIONS@@
 </main>
 <script id="file-store" type="application/json">@@NSX_FILE_STORE@@</script>
 <script id="nsx-concepts" type="application/json">@@NSX_CONCEPTS@@</script>

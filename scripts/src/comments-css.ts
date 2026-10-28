@@ -127,6 +127,7 @@ export const COMMENTS_CSS = String.raw`
   .nsx-c-pbody { overflow-y: auto; padding: .5rem; display: grid; gap: .4rem; }
   .nsx-c-pitem { padding: .5rem .6rem; border-radius: .4rem; background: var(--color-base-200, #eee); }
   .nsx-c-pitem.is-editing { outline: 2px solid var(--color-primary, #4f46e5); }
+  .nsx-c-psection { margin-block-start: .5rem; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; opacity: .65; }
   .nsx-c-pwhere { font-size: .8rem; font-weight: 600; overflow-wrap: anywhere; }
   .nsx-c-pexcerpt { margin-block: .1rem .3rem; font-size: .75rem; opacity: .6; overflow-wrap: anywhere; }
   .nsx-c-pempty { padding: .75rem; font-size: .8rem; opacity: .7; }
